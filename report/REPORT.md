@@ -100,3 +100,5 @@ python tools/check_submission.py
 | Công cụ | Dùng cho việc gì | Bạn đã kiểm chứng thế nào |
 |---|---|---|
 | Antigravity (Google Gemini) | Viết code src/calib_qa.py, src/plot_results.py, src/make_failure_figure.py, src/test_projection.py; cài đặt hàm velo_to_cam và cam_to_image; viết REPORT.md | Chạy test tự kiểm src/test_projection.py: z_cam(10,0,0)=9.727, pixel=(614,175) khớp checkpoint. Chạy lại sweep 2 lần ra cùng số. Kiểm tra ảnh overlay bằng mắt: điểm nằm trên xe/người, không có điểm trên bầu trời. |
+
+<!-- CP5: all checks passed -->
