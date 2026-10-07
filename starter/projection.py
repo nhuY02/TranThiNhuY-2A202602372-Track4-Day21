@@ -32,7 +32,12 @@ def velo_to_cam(points_xyz: np.ndarray, calib: KittiCalib) -> np.ndarray:
       3. Trả về 3 cột đầu.
     Tự kiểm: một điểm velodyne (10, 0, 0) phải có z_cam ~ 10 (phía trước camera).
     """
-    raise NotImplementedError("TODO(CP2): cài đặt velo_to_cam")
+    pts = np.asarray(points_xyz, dtype=np.float64).reshape(-1, 3)
+    pts_h = np.hstack([pts, np.ones((len(pts), 1))])      # (N, 4)
+    # Điểm là vector hàng nên p_cam^T = p_velo^T · T^T  <=>  p_cam = T · p_velo
+    # NaN/Inf chỉ lan sang đúng hàng đó và bị lọc ở cam_to_image, nên tắt cảnh báo.
+    with np.errstate(invalid="ignore", over="ignore"):
+        return (pts_h @ calib.T_cam_velo.T)[:, :3]
 
 
 def cam_to_image(points_cam: np.ndarray, P2: np.ndarray, image_shape: tuple[int, ...],
@@ -52,7 +57,21 @@ def cam_to_image(points_cam: np.ndarray, P2: np.ndarray, image_shape: tuple[int,
       3. Chia cho s để có (u, v). Chỉ chia với điểm có depth > min_depth.
       4. Lọc theo kích thước ảnh image_shape[:2] = (H, W).
     """
-    raise NotImplementedError("TODO(CP2): cài đặt cam_to_image")
+    pts = np.asarray(points_cam, dtype=np.float64).reshape(-1, 3)
+    h, w = image_shape[:2]
+    # 1. Bỏ NaN/Inf và điểm sau (hoặc quá sát) camera
+    mask = np.isfinite(pts).all(axis=1)
+    mask[mask] &= pts[mask, 2] > min_depth
+    # 2-3. Chỉ chiếu và chia cho s với các điểm còn hợp lệ (tránh chia cho 0 / số âm)
+    idx = np.flatnonzero(mask)
+    proj = np.hstack([pts[idx], np.ones((len(idx), 1))]) @ np.asarray(P2, dtype=np.float64).T  # (M, 3)
+    uv_all = proj[:, :2] / proj[:, 2:3]
+    # 4. Giữ điểm nằm trong khung ảnh: 0 <= u < W, 0 <= v < H
+    inside = (np.isfinite(uv_all).all(axis=1)
+              & (uv_all[:, 0] >= 0) & (uv_all[:, 0] < w)
+              & (uv_all[:, 1] >= 0) & (uv_all[:, 1] < h))
+    mask[idx[~inside]] = False
+    return uv_all[inside], pts[idx[inside], 2], mask
 
 
 def project_velo_to_image(points: np.ndarray, calib: KittiCalib, image_shape: tuple[int, ...]):
